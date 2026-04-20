@@ -2,8 +2,9 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { GraduationCap } from "lucide-react"
-
+import { useRouter } from "next/navigation"
+import { GraduationCap, Loader2 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -15,25 +16,62 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { toast } from "sonner"
 
 export default function SignupPage() {
+  const router = useRouter()
   const [isLoading, setIsLoading] = React.useState<boolean>(false)
+  const [formData, setFormData] = React.useState({
+    name: "",
+    email: "",
+    password: "",
+  })
 
   async function onSubmit(event: React.SyntheticEvent) {
     event.preventDefault()
     setIsLoading(true)
 
-    // Signup logic will go here
-    setTimeout(() => {
+    try {
+      // 1. Create Auth User
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+          },
+        },
+      })
+
+      if (authError) throw authError
+
+      if (!authData.user) throw new Error("No user data returned")
+
+      // 2. Create User Profile in public.users table
+      // Note: In a production app, this is often done via a Supabase Trigger,
+      // but for this demo we'll do it manually to ensure roles are set.
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert({
+          id: authData.user.id,
+          name: formData.name,
+          email: formData.email,
+          role: 'student', // Hardcoded as requested
+        })
+
+      if (profileError) {
+        console.error("Profile creation error:", profileError)
+        // If profile fails but auth succeeded, we still have an auth user.
+        // In a real app, you'd want to handle this cleanup.
+      }
+
+      toast.success("Account created! Please check your email for verification.")
+      router.push("/login")
+    } catch (error: any) {
+      toast.error(error.message || "Something went wrong. Please try again.")
+    } finally {
       setIsLoading(false)
-    }, 2000)
+    }
   }
 
   return (
@@ -46,10 +84,10 @@ export default function SignupPage() {
         </div>
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
-            <p className="text-lg">
+            <p className="text-lg text-blue-50">
               Join the elite academic community and manage your education with ease.
             </p>
-            <footer className="text-sm">Workday University Enrollment</footer>
+            <footer className="text-sm opacity-80">Workday University Enrollment</footer>
           </blockquote>
         </div>
       </div>
@@ -59,7 +97,7 @@ export default function SignupPage() {
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl text-center">Create an account</CardTitle>
               <CardDescription className="text-center">
-                Enter your details to create your SIOTW account
+                Sign up as a Student to start registering for courses.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
@@ -70,6 +108,8 @@ export default function SignupPage() {
                     <Input
                       id="name"
                       placeholder="John Doe"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       type="text"
                       disabled={isLoading}
                       required
@@ -81,6 +121,8 @@ export default function SignupPage() {
                       id="email"
                       placeholder="name@example.com"
                       type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       autoCapitalize="none"
                       autoComplete="email"
                       autoCorrect="off"
@@ -94,24 +136,15 @@ export default function SignupPage() {
                       id="password"
                       placeholder="••••••••"
                       type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       autoCapitalize="none"
                       disabled={isLoading}
                       required
                     />
                   </div>
-                  <div className="grid gap-1">
-                    <Label htmlFor="role">Role</Label>
-                    <Select defaultValue="student" disabled={isLoading}>
-                      <SelectTrigger id="role">
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="admin">Administrator (Staff)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <Button className="bg-[#005cb9] hover:bg-[#004a96]" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isLoading ? "Creating Account..." : "Sign Up"}
                   </Button>
                 </div>

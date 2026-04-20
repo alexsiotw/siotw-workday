@@ -73,8 +73,25 @@ interface AppSidebarProps {
   } | null;
 }
 
+import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
+
 export function AppSidebar({ user }: AppSidebarProps) {
+  const router = useRouter()
   const items = user?.role === 'admin' ? adminItems : studentItems;
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      toast.success("Logged out successfully")
+      router.push("/login")
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error.message || "Error logging out")
+    }
+  }
 
   return (
     <Sidebar collapsible="icon">
@@ -122,7 +139,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Logout">
+              <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
                 <span>Logout</span>
               </SidebarMenuButton>
