@@ -8,7 +8,8 @@ import {
   Clock, 
   User,
   Loader2,
-  BookOpen
+  BookOpen,
+  GraduationCap
 } from "lucide-react"
 
 import {
