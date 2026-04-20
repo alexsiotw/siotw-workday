@@ -47,6 +47,25 @@ CREATE POLICY "Students can view their own enrollments" ON public.enrollments FO
 CREATE POLICY "Students can enroll in courses" ON public.enrollments FOR INSERT TO authenticated WITH CHECK (auth.uid() = student_id);
 CREATE POLICY "Admins can view all enrollments" ON public.enrollments FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
 
+-- Automated Profile Creation Trigger
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, name, email, role)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', 'Student'),
+    NEW.email,
+    'student'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
 -- Function to handle atomic enrollment and capacity check
 CREATE OR REPLACE FUNCTION public.enroll_student(p_student_id UUID, p_course_id TEXT)
 RETURNS VOID AS $$

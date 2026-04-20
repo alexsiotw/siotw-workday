@@ -25,47 +25,36 @@ export default function SignupPage() {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
   })
 
   async function onSubmit(event: React.SyntheticEvent) {
     event.preventDefault()
     setIsLoading(true)
 
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match")
+      setIsLoading(false)
+      return
+    }
+
     try {
       // 1. Create Auth User
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Note: A database trigger (handle_new_user) now automatically creates the 
+      // public.users record using the full_name from the metadata.
+      const { error: authError } = await supabase.auth.signUp({
         email: formData.email.trim(),
         password: formData.password.trim(),
         options: {
           data: {
             full_name: formData.name,
-          },
-        },
+          }
+        }
       })
 
       if (authError) throw authError
 
-      if (!authData.user) throw new Error("No user data returned")
-
-      // 2. Create User Profile in public.users table
-      // Note: In a production app, this is often done via a Supabase Trigger,
-      // but for this demo we'll do it manually to ensure roles are set.
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          name: formData.name,
-          email: formData.email,
-          role: 'student', // Hardcoded as requested
-        })
-
-      if (profileError) {
-        console.error("Profile creation error:", profileError)
-        // If profile fails but auth succeeded, we still have an auth user.
-        // In a real app, you'd want to handle this cleanup.
-      }
-
-      toast.success("Account created! Please check your email for verification.")
+      toast.success("Account created successfully! You can now log in.")
       router.push("/login")
     } catch (error: any) {
       toast.error(error.message || "Something went wrong. Please try again.")
@@ -85,9 +74,9 @@ export default function SignupPage() {
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
             <p className="text-lg text-blue-50">
-              Join the elite academic community and manage your education with ease.
+              &ldquo;Joining the university family has never been easier. Registration takes less than a minute.&rdquo;
             </p>
-            <footer className="text-sm opacity-80">Workday University Enrollment</footer>
+            <footer className="text-sm opacity-80">Workday Admissions</footer>
           </blockquote>
         </div>
       </div>
@@ -97,7 +86,7 @@ export default function SignupPage() {
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl text-center">Create an account</CardTitle>
               <CardDescription className="text-center">
-                Sign up as a Student to start registering for courses.
+                Enter your details below to register as a student.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
@@ -107,10 +96,10 @@ export default function SignupPage() {
                     <Label htmlFor="name">Full Name</Label>
                     <Input
                       id="name"
-                      placeholder="John Doe"
+                      placeholder="Alex Smith"
+                      type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      type="text"
                       disabled={isLoading}
                       required
                     />
@@ -138,7 +127,18 @@ export default function SignupPage() {
                       type="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      autoCapitalize="none"
+                      disabled={isLoading}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      placeholder="••••••••"
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                       disabled={isLoading}
                       required
                     />
@@ -149,7 +149,7 @@ export default function SignupPage() {
                     disabled={isLoading}
                   >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isLoading ? "Creating Account..." : "Sign Up"}
+                    {isLoading ? "Creating Account..." : "Create Account"}
                   </Button>
                 </div>
               </form>
