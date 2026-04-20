@@ -32,15 +32,18 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
+      console.log("Attempting login for:", formData.email)
+      
       // 1. Sign In
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       })
 
-      if (authError) throw authError
-
-      if (!authData.user) throw new Error("No user found")
+      if (authError) {
+        console.error("Supabase Auth Error:", authError)
+        throw authError
+      }
 
       // 2. Fetch User Role
       const { data: userData, error: userError } = await supabase
