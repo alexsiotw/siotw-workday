@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS public.enrollments (
 ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+CREATE POLICY "Users can insert their own profile" ON public.users FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users can view their own profile" ON public.users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Everyone can view courses" ON public.courses FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Admins can manage courses" ON public.courses FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));

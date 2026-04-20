@@ -49,10 +49,14 @@ export default function LoginPage() {
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('role')
-        .eq('id', authData.user.id)
-        .single()
+        .eq('id', authData.user!.id)
+        .maybeSingle() // Use maybeSingle to avoid JSON coercion error if profile is missing
 
       if (userError) throw userError
+
+      if (!userData) {
+        throw new Error("Your account was created but your profile is missing. Please contact support or try signing up again.")
+      }
 
       toast.success("Welcome back!")
 
