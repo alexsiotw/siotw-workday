@@ -8,7 +8,8 @@ import {
   Clock, 
   CheckCircle2,
   TrendingUp,
-  MapPin
+  MapPin,
+  User
 } from "lucide-react"
 
 import {
