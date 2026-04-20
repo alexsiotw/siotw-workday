@@ -26,43 +26,62 @@ export default function LoginPage() {
     password: "",
   })
 
+  // Utility to wait
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   async function onSubmit(event: React.SyntheticEvent) {
     event.preventDefault()
-    console.log("Login form submitted")
     setIsLoading(true)
 
     try {
-      console.log("Attempting login for:", formData.email)
-      
       // 1. Sign In
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: formData.email.trim(),
         password: formData.password.trim(),
       })
 
-      if (authError) {
-        console.error("Supabase Auth Error:", authError)
-        throw authError
-      }
+      if (authError) throw authError
 
-      // 2. Fetch User Role
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', authData.user!.id)
-        .maybeSingle() // Use maybeSingle to avoid JSON coercion error if profile is missing
+      // 2. Fetch User Role with Retry Logic (Handles database propagation delay)
+      let userData = null;
+      let userError = null;
+      const maxRetries = 3;
+      
+      for (let i = 0; i < maxRetries; i++) {
+        const { data, error } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', authData.user!.id)
+          .maybeSingle()
+
+        if (data) {
+          userData = data;
+          break;
+        }
+        
+        if (error) {
+          userError = error;
+          break;
+        }
+
+        // If no data and no error, it's missing. Wait and retry.
+        if (i < maxRetries - 1) {
+          console.log(`Profile missing, retrying... (${i + 1}/${maxRetries})`);
+          await sleep(1000); // Wait 1 second before retry
+        }
+      }
 
       if (userError) throw userError
 
       if (!userData) {
-        throw new Error("Your account was created but your profile is missing. Please contact support or try signing up again.")
+        throw new Error("Your account exists, but your student profile is still being synchronized. Please wait 10 seconds and try again.")
       }
 
       toast.success("Welcome back!")
 
       // 3. Redirect based on role
       if (userData.role === 'admin') {
-        router.push("/admin/courses")
+        router.push("/admin")
       } else {
         router.push("/dashboard")
       }
