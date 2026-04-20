@@ -4,18 +4,16 @@ import * as React from "react"
 import { 
   ChevronDown, 
   Filter, 
-  MoreHorizontal, 
   Search,
   BookOpen,
   Users,
-  Clock,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -24,10 +22,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
@@ -49,95 +43,73 @@ import {
 } from "@/components/ui/dialog"
 import { AppShell } from "@/components/layout/AppShell"
 import { toast } from "sonner"
-
-// Mock Course Data
-const courses = [
-  {
-    id: "CS101",
-    title: "Introduction to Computer Science",
-    credits: 3,
-    instructor: "Dr. Alan Turing",
-    capacity: 50,
-    enrolled: 45,
-    description: "Fundamental concepts of computer science including algorithms, data structures, and problem solving."
-  },
-  {
-    id: "MATH202",
-    title: "Linear Algebra",
-    credits: 4,
-    instructor: "Dr. Emmy Noether",
-    capacity: 35,
-    enrolled: 30,
-    description: "Study of vector spaces, linear transformations, matrices, and determinants."
-  },
-  {
-    id: "BIO305",
-    title: "Molecular Biology",
-    credits: 4,
-    instructor: "Dr. Rosalind Franklin",
-    capacity: 25,
-    enrolled: 22,
-    description: "Exploration of biological processes at the molecular level, focusing on DNA, RNA, and protein synthesis."
-  },
-  {
-    id: "ENG110",
-    title: "World Literature",
-    credits: 3,
-    instructor: "Prof. Chinua Achebe",
-    capacity: 40,
-    enrolled: 15,
-    description: "A survey of significant literary works from various cultures and historical periods."
-  },
-  {
-    id: "PHYS201",
-    title: "General Physics I",
-    credits: 4,
-    instructor: "Dr. Marie Curie",
-    capacity: 60,
-    enrolled: 60,
-    description: "Introduction to mechanics, heat, and sound for science and engineering majors."
-  },
-  {
-    id: "ECON101",
-    title: "Principles of Economics",
-    credits: 3,
-    instructor: "Adam Smith",
-    capacity: 100,
-    enrolled: 85,
-    description: "An overview of microeconomic and macroeconomic theories and applications."
-  }
-]
+import { supabase } from "@/lib/supabase"
+import { useUser } from "@/hooks/use-user"
 
 export default function CourseCatalogPage() {
+  const { user, loading: userLoading } = useUser()
+  const [courses, setCourses] = React.useState<any[]>([])
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [selectedCourse, setSelectedCourse] = React.useState<typeof courses[0] | null>(null)
-  
-  const user = {
-    name: "Alex Smith",
-    email: "alex.smith@university.edu",
-    role: 'student' as const,
-  }
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [isEnrolling, setIsEnrolling] = React.useState(false)
+
+  // Fetch courses from Supabase
+  const fetchCourses = React.useCallback(async () => {
+    setIsLoading(true)
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .order('id', { ascending: true })
+    
+    if (error) {
+      toast.error("Failed to load courses")
+    } else {
+      setCourses(data || [])
+    }
+    setIsLoading(false)
+  }, [])
+
+  React.useEffect(() => {
+    fetchCourses()
+  }, [fetchCourses])
 
   const filteredCourses = courses.filter(course => 
     course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     course.id.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handleEnroll = (courseId: string) => {
-    const course = courses.find(c => c.id === courseId)
-    if (course && course.enrolled >= course.capacity) {
-      toast.error("Enrollment failed: Course is at maximum capacity.")
+  const handleEnroll = async (courseId: string) => {
+    if (!user) {
+      toast.error("You must be logged in to enroll")
       return
     }
-    
-    setIsLoading(true)
-    setTimeout(() => {
-      setIsLoading(false)
-      toast.success(`Successfully enrolled in ${courseId}!`)
-    }, 1500)
+
+    setIsEnrolling(true)
+    try {
+      // Call the Supabase RPC function defined in our schema
+      const { error } = await supabase.rpc('enroll_student', {
+        p_student_id: user.id,
+        p_course_id: courseId
+      })
+
+      if (error) throw error
+
+      toast.success(`Successfully enrolled!`)
+      fetchCourses() // Refresh to update capacity
+    } catch (error: any) {
+      toast.error(error.message || "Enrollment failed")
+    } finally {
+      setIsEnrolling(false)
+    }
   }
 
-  const [isLoading, setIsLoading] = React.useState(false)
+  if (userLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#f0f2f5]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#005cb9]" />
+      </div>
+    )
+  }
 
   return (
     <AppShell user={user}>
@@ -182,100 +154,113 @@ export default function CourseCatalogPage() {
         </div>
 
         <Card className="border-none shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
-                <TableHead className="w-[100px]">Course ID</TableHead>
-                <TableHead>Course Name</TableHead>
-                <TableHead>Instructor</TableHead>
-                <TableHead className="text-center">Credits</TableHead>
-                <TableHead className="text-center">Availability</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="bg-white">
-              {filteredCourses.map((course) => (
-                <TableRow key={course.id} className="hover:bg-blue-50/30 transition-colors">
-                  <TableCell className="font-semibold text-[#005cb9]">{course.id}</TableCell>
-                  <TableCell className="font-medium text-slate-800">{course.title}</TableCell>
-                  <TableCell>{course.instructor}</TableCell>
-                  <TableCell className="text-center">{course.credits}</TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${course.enrolled >= course.capacity ? 'bg-red-500' : 'bg-[#005cb9]'}`}
-                          style={{ width: `${(course.enrolled / course.capacity) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">
-                        {course.enrolled} / {course.capacity} seats
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Dialog>
-                      <DialogTrigger
-                        render={
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setSelectedCourse(course)}
-                          >
-                            Details
-                          </Button>
-                        }
-                      />
-                      <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                          <DialogTitle className="text-[#005cb9]">{course.id}: {course.title}</DialogTitle>
-                          <DialogDescription>
-                            Provided by Department of {course.id.startsWith('CS') ? 'Computer Science' : course.id.startsWith('MATH') ? 'Mathematics' : 'General Sciences'}.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-semibold flex items-center gap-2">
-                              <BookOpen className="h-4 w-4 text-[#005cb9]" />
-                              Description
-                            </h4>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              {course.description}
-                            </p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                            <div className="space-y-1">
-                              <span className="text-[10px] uppercase text-muted-foreground font-bold">Instructor</span>
-                              <div className="flex items-center gap-2 text-sm">
-                                <Users className="h-3 w-3 text-blue-500" />
-                                {course.instructor}
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <span className="text-[10px] uppercase text-muted-foreground font-bold">Credits</span>
-                              <div className="flex items-center gap-2 text-sm">
-                                <CheckCircle2 className="h-3 w-3 text-blue-500" />
-                                {course.credits} Credits
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button 
-                            className="w-full bg-[#005cb9] hover:bg-[#004a96]"
-                            disabled={isLoading || course.enrolled >= course.capacity}
-                            onClick={() => handleEnroll(course.id)}
-                          >
-                            {isLoading ? "Processing..." : course.enrolled >= course.capacity ? "Course Full" : "Enroll Now"}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </TableCell>
+          {isLoading ? (
+            <div className="p-12 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-[#005cb9] mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading course catalog...</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow>
+                  <TableHead className="w-[100px]">Course ID</TableHead>
+                  <TableHead>Course Name</TableHead>
+                  <TableHead>Instructor</TableHead>
+                  <TableHead className="text-center">Credits</TableHead>
+                  <TableHead className="text-center">Availability</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody className="bg-white">
+                {filteredCourses.map((course) => (
+                  <TableRow key={course.id} className="hover:bg-blue-50/30 transition-colors">
+                    <TableCell className="font-semibold text-[#005cb9] break-all max-w-[150px]">{course.id}</TableCell>
+                    <TableCell className="font-medium text-slate-800">{course.title}</TableCell>
+                    <TableCell>{course.instructor || "Not assigned"}</TableCell>
+                    <TableCell className="text-center">{course.credits}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${course.current_enrollment >= course.max_capacity ? 'bg-red-500' : 'bg-[#005cb9]'}`}
+                            style={{ width: `${(course.current_enrollment / course.max_capacity) * 100}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">
+                          {course.current_enrollment} / {course.max_capacity} seats
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Dialog>
+                        <DialogTrigger
+                          render={
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                            >
+                              Details
+                            </Button>
+                          }
+                        />
+                        <DialogContent className="sm:max-w-[425px]">
+                          <DialogHeader>
+                            <DialogTitle className="text-[#005cb9]">{course.title}</DialogTitle>
+                            <DialogDescription>
+                              Course ID: {course.id}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                              <h4 className="text-sm font-semibold flex items-center gap-2">
+                                <BookOpen className="h-4 w-4 text-[#005cb9]" />
+                                Description
+                              </h4>
+                              <p className="text-sm text-muted-foreground leading-relaxed">
+                                {course.description || "No description provided."}
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                              <div className="space-y-1">
+                                <span className="text-[10px] uppercase text-muted-foreground font-bold">Instructor</span>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Users className="h-3 w-3 text-blue-500" />
+                                  {course.instructor || "Staff"}
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <span className="text-[10px] uppercase text-muted-foreground font-bold">Credits</span>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <CheckCircle2 className="h-3 w-3 text-blue-500" />
+                                  {course.credits} Credits
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button 
+                              className="w-full bg-[#005cb9] hover:bg-[#004a96]"
+                              disabled={isEnrolling || course.current_enrollment >= course.max_capacity}
+                              onClick={() => handleEnroll(course.id)}
+                            >
+                              {isEnrolling ? "Processing..." : course.current_enrollment >= course.max_capacity ? "Course Full" : "Enroll Now"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredCourses.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No courses found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </Card>
       </div>
     </AppShell>
