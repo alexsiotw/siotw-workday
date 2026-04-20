@@ -143,7 +143,11 @@ export default function SignupPage() {
                       required
                     />
                   </div>
-                  <Button className="bg-[#005cb9] hover:bg-[#004a96]" disabled={isLoading}>
+                  <Button 
+                    type="submit" 
+                    className="bg-[#005cb9] hover:bg-[#004a96]" 
+                    disabled={isLoading}
+                  >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isLoading ? "Creating Account..." : "Sign Up"}
                   </Button>
