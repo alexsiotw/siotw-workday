@@ -40,9 +40,7 @@ export default function SignupPage() {
 
     try {
       // 1. Create Auth User
-      // Note: A database trigger (handle_new_user) now automatically creates the 
-      // public.users record using the full_name from the metadata.
-      const { error: authError } = await supabase.auth.signUp({
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email.trim(),
         password: formData.password.trim(),
         options: {
@@ -54,7 +52,25 @@ export default function SignupPage() {
 
       if (authError) throw authError
 
-      toast.success("Account created successfully! You can now log in.")
+      if (authData.user) {
+        // 2. BACKUP: Manually insert the profile in case the trigger fails
+        // We use upsert to prevent errors if the trigger actually worked
+        const { error: profileError } = await supabase
+          .from('users')
+          .upsert({
+            id: authData.user.id,
+            name: formData.name,
+            email: formData.email,
+            role: 'student'
+          })
+        
+        if (profileError) {
+          console.warn("Trigger failed or blocked, but Auth succeeded. Profile error:", profileError);
+          // We don't throw here, as the user is still created in Auth
+        }
+      }
+
+      toast.success("Account created successfully! Welcome to the university.")
       router.push("/login")
     } catch (error: any) {
       toast.error(error.message || "Something went wrong. Please try again.")
