@@ -112,12 +112,14 @@ export default function AdminCoursesPage() {
             <p className="text-muted-foreground">Add, edit, or remove courses from the catalog.</p>
           </div>
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-[#005cb9] hover:bg-[#004a96]">
-                <Plus className="mr-2 h-4 w-4" />
-                Add New Course
-              </Button>
-            </DialogTrigger>
+            <DialogTrigger
+              render={
+                <Button className="bg-[#005cb9] hover:bg-[#004a96]">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add New Course
+                </Button>
+              }
+            />
             <DialogContent className="sm:max-w-[425px]">
               <form onSubmit={handleAddCourse}>
                 <DialogHeader>

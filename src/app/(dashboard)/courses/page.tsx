@@ -156,11 +156,13 @@ export default function CourseCatalogPage() {
               Advanced Filters
             </Button>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="bg-white border-none shadow-sm">
-                  Sort By <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="outline" className="bg-white border-none shadow-sm">
+                    Sort By <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                }
+              />
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Sort Options</DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -206,15 +208,17 @@ export default function CourseCatalogPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setSelectedCourse(course)}
-                        >
-                          Details
-                        </Button>
-                      </DialogTrigger>
+                      <DialogTrigger
+                        render={
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setSelectedCourse(course)}
+                          >
+                            Details
+                          </Button>
+                        }
+                      />
                       <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
                           <DialogTitle className="text-[#005cb9]">{course.id}: {course.title}</DialogTitle>
