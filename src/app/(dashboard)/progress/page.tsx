@@ -16,9 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
+import { Button } from "@/components/ui/button"
 import { AppShell } from "@/components/layout/AppShell"
-import { supabase } from "@/lib/supabase"
 import { useUser } from "@/hooks/use-user"
 
 export default function ProgressPage() {
@@ -28,7 +27,6 @@ export default function ProgressPage() {
     required: 120,
     gpa: 3.85
   })
-  const [isLoading, setIsLoading] = React.useState(false)
 
   if (userLoading) {
     return (
@@ -63,21 +61,30 @@ export default function ProgressPage() {
                   <span>General Education</span>
                   <span>75%</span>
                 </div>
-                <Progress value={75} className="h-2 bg-slate-100" />
+                {/* Custom Progress Bar */}
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#005cb9] transition-all" style={{ width: '75%' }} />
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm font-medium">
                   <span>Major Requirements</span>
                   <span>30%</span>
                 </div>
-                <Progress value={30} className="h-2 bg-slate-100" />
+                {/* Custom Progress Bar */}
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#005cb9] transition-all" style={{ width: '30%' }} />
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm font-medium">
                   <span>Total Credits</span>
                   <span>{percentage}%</span>
                 </div>
-                <Progress value={percentage} className="h-2 bg-slate-100" />
+                {/* Custom Progress Bar */}
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#005cb9] transition-all" style={{ width: `${percentage}%` }} />
+                </div>
                 <p className="text-xs text-muted-foreground pt-1">
                   {stats.totalCompleted} of {stats.required} credits completed.
                 </p>
