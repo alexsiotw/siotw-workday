@@ -31,12 +31,40 @@ CREATE TABLE IF NOT EXISTS public.enrollments (
     student_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
     course_id TEXT REFERENCES public.courses(id) ON DELETE CASCADE NOT NULL,
     status TEXT NOT NULL DEFAULT 'enrolled' CHECK (status IN ('enrolled', 'dropped', 'completed')),
+    grade TEXT,
     enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     UNIQUE(student_id, course_id)
 );
 
 -- Enable RLS on enrollments
 ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
+
+-- Create Holds table
+CREATE TABLE IF NOT EXISTS public.holds (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    student_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+    hold_reason TEXT NOT NULL,
+    description TEXT,
+    resolution_instructions TEXT,
+    hold_type TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS on holds
+ALTER TABLE public.holds ENABLE ROW LEVEL SECURITY;
+
+-- Create Appointments table
+CREATE TABLE IF NOT EXISTS public.appointments (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    student_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+    title TEXT NOT NULL,
+    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    time_zone TEXT DEFAULT 'Eastern Time (New York)' NOT NULL
+);
+
+-- Enable RLS on appointments
+ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 CREATE POLICY "Users can insert their own profile" ON public.users FOR INSERT WITH CHECK (auth.uid() = id);
@@ -46,6 +74,8 @@ CREATE POLICY "Admins can manage courses" ON public.courses FOR ALL TO authentic
 CREATE POLICY "Students can view their own enrollments" ON public.enrollments FOR SELECT TO authenticated USING (auth.uid() = student_id);
 CREATE POLICY "Students can enroll in courses" ON public.enrollments FOR INSERT TO authenticated WITH CHECK (auth.uid() = student_id);
 CREATE POLICY "Admins can view all enrollments" ON public.enrollments FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "Students can view their own holds" ON public.holds FOR SELECT USING (auth.uid() = student_id);
+CREATE POLICY "Students can view their own appointments" ON public.appointments FOR SELECT USING (auth.uid() = student_id);
 
 -- Automated Profile Creation Trigger
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -57,7 +87,8 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'full_name', 'Student'),
     NEW.email,
     'student'
-  );
+  )
+  ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
